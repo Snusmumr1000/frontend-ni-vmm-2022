@@ -68,7 +68,7 @@
                   :style="{ height: '50%' }"
                   v-if="selectedImageId && selectedImageId !== id"
                 >
-                  {{ Math.round(comparisonMap[id] * 100) / 100}}
+                  {{ (Math.round(comparisonMap[id] * 100) / 100).toFixed(2) }}
                 </div>
               </q-img>
             </q-card>
@@ -128,7 +128,9 @@ export default defineComponent({
     const uploadImage = async () => {
       Promise.all(imageToUpload.value.map((f) => createImageVector(f))).then(() => {
         fetchImages();
-        fetchImageComparison();
+        if (selectedImageId.value) {
+          fetchImageComparison();
+        }
       });
     };
 

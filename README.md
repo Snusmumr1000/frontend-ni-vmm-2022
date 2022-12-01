@@ -1,6 +1,21 @@
-# Quasar App (frontend)
+# NN Image Comparison app frontend
 
-A Quasar Project
+NN Image Comparison
+
+## Installation
+### Docker image installation
+#### Build docker image
+
+```bash
+docker build -t ni-vmm-th2022
+```
+
+#### Start docker image
+
+```bash
+docker run -p 9000:9000 ni-vmm-th2022
+```
+
 
 ## Install the dependencies
 ```bash
