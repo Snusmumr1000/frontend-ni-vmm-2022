@@ -17,4 +17,4 @@ export const compareImageToOthers = async (imageId) => {
   return response.data;
 };
 
-export const IMAGE_HOSTING_URL = 'http://localhost:8000/static/images/';
+export const IMAGE_HOSTING_URL = 'http://thevhs.club:8000/static/images/';
