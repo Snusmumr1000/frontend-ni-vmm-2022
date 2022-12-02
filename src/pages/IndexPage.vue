@@ -44,11 +44,28 @@
       </div>
 
       <div class="col-4 q-pa-md" v-if="selectedImageId">
-        <p>This picture below</p>
+        <div class="flex">
+          <q-form @submit="fetchImageComparison">
+            <q-input
+              label="Number of similar pictures"
+              v-model="topLimit"
+              type="number"
+            />
+            <q-btn
+              class="q-mt-md"
+              color="primary"
+              label="Refresh"
+              type="submit"
+              @click="fetchImageComparison"
+            />
+          </q-form>
+        </div>
+        <q-separator class="q-mt-lg"/>
+        <p class="q-mt-lg">This picture below</p>
         <q-img
           :src="generateImageUrl(selectedImageId)"
           :fit="'contain'"
-          :style="{ height: '320px' }"
+          :style="{ height: '250px' }"
         />
         <p>looks like these pictures (similarity between 0 and 1)</p>
         <q-card-section class="bg-grey-3">
@@ -88,7 +105,7 @@ import {
 export default defineComponent({
   name: 'IndexPage',
   setup() {
-    const topLimit = 5;
+    const topLimit = ref(5);
 
     const imageIds = ref([]);
     const imageToUpload = ref(null);
@@ -116,7 +133,7 @@ export default defineComponent({
 
       topImageUrls.value = Object.entries(comparisonMap.value)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, topLimit)
+        .slice(0, topLimit.value)
         .map(([id]) => ({ id, url: `${IMAGE_HOSTING_URL}${id}.jpg` }));
     }
 
@@ -145,6 +162,8 @@ export default defineComponent({
       topImageUrls,
       uploadImage,
       generateImageUrl,
+      topLimit,
+      fetchImageComparison,
     };
   },
 });
