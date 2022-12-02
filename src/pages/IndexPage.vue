@@ -14,6 +14,34 @@
           label="Upload"
           @click="uploadImage"
         />
+
+        <div class="flex q-mt-xl">
+          <q-select
+            v-model="currentModel"
+            use-input
+            hide-selected
+            fill-input
+            input-debounce="0"
+            :options="filteredModels"
+            @filter="modelFilterFn"
+            style="width: 250px"
+          >
+            <template v-slot:no-option>
+              <q-item>
+                <q-item-section class="text-grey">
+                  No results
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+          <q-btn
+            class="q-mt-md"
+            color="primary"
+            label="Refresh"
+            type="submit"
+            @click="setModel"
+          />
+        </div>
       </div>
       <div class="col-4">
         <q-card-section :style="{height: '720px'}" class="bg-grey-4 scroll-x">
@@ -45,7 +73,7 @@
 
       <div class="col-4 q-pa-md" v-if="selectedImageId">
         <div class="flex">
-          <q-form @submit="fetchImageComparison">
+          <q-form @submit="getImageComparison">
             <q-input
               label="Number of similar pictures"
               v-model="topLimit"
@@ -56,7 +84,7 @@
               color="primary"
               label="Refresh"
               type="submit"
-              @click="fetchImageComparison"
+              @click="getImageComparison"
             />
           </q-form>
         </div>
@@ -92,6 +120,12 @@
           </div>
         </q-card-section>
       </div>
+      <q-inner-loading
+        :showing="settingCurrentModelLoading"
+        :label="'Setting current model and recalculating image vectors...'"
+        label-class="text-red text-weight-bold"
+        label-style="font-size: 1.1em; text-weight: bold"
+      />
     </div>
   </q-page>
 </template>
@@ -99,12 +133,21 @@
 <script>
 import { computed, defineComponent, ref } from 'vue';
 import {
-  compareImageToOthers, createImageVector, getImageIds, IMAGE_HOSTING_URL,
+  compareImageToOthers,
+  createImageVector,
+  fetchCurrentModel,
+  fetchImageIds,
+  fetchModels,
+  IMAGE_HOSTING_URL,
+  setCurrentModel,
 } from 'src/api';
+import useNotifications from 'src/composables/use-notifications';
 
 export default defineComponent({
   name: 'IndexPage',
   setup() {
+    const { notifyPositive, notifyNegative } = useNotifications();
+
     const topLimit = ref(5);
 
     const imageIds = ref([]);
@@ -120,15 +163,15 @@ export default defineComponent({
 
     const imageUrls = computed(() => imageIds.value.map((id) => ({ id, url: generateImageUrl(id) })));
 
-    function fetchImages() {
-      getImageIds().then((data) => {
+    function getImages() {
+      fetchImageIds().then((data) => {
         imageIds.value = data.map(({ h }) => h);
       });
     }
 
-    fetchImages();
+    getImages();
 
-    async function fetchImageComparison() {
+    async function getImageComparison() {
       comparisonMap.value = await compareImageToOthers(selectedImageId.value);
 
       topImageUrls.value = Object.entries(comparisonMap.value)
@@ -139,17 +182,49 @@ export default defineComponent({
 
     const selectImageToCompare = async (imageId) => {
       selectedImageId.value = imageId;
-      await fetchImageComparison();
+      await getImageComparison();
+    };
+
+    const fetchImagesWithComparison = () => {
+      getImages();
+      if (selectedImageId.value) {
+        getImageComparison();
+      }
     };
 
     const uploadImage = async () => {
       Promise.all(imageToUpload.value.map((f) => createImageVector(f))).then(() => {
-        fetchImages();
-        if (selectedImageId.value) {
-          fetchImageComparison();
-        }
+        fetchImagesWithComparison();
       });
     };
+
+    const settingCurrentModelLoading = ref(false);
+    const currentModel = ref(null);
+    const availableModels = ref([]);
+    const filteredModels = ref([]);
+    const setModel = async () => {
+      settingCurrentModelLoading.value = true;
+      setCurrentModel(currentModel.value).then(() => {
+        fetchImagesWithComparison();
+        notifyPositive('Model has been set');
+      }).catch(() => {
+        notifyNegative('Model has not been set due to an error, check backend logs');
+      }).finally(() => {
+        settingCurrentModelLoading.value = false;
+      });
+    };
+    const modelFilterFn = (val, update) => {
+      update(() => {
+        const needle = val.toLowerCase();
+        filteredModels.value = availableModels.value.filter((v) => v.toLowerCase().indexOf(needle) > -1);
+      });
+    };
+    fetchCurrentModel().then(({ model }) => {
+      currentModel.value = model;
+    });
+    fetchModels().then(({ models }) => {
+      availableModels.value = models;
+    });
 
     return {
       imageToUpload,
@@ -163,7 +238,13 @@ export default defineComponent({
       uploadImage,
       generateImageUrl,
       topLimit,
-      fetchImageComparison,
+      getImageComparison,
+      setModel,
+      currentModel,
+      availableModels,
+      filteredModels,
+      modelFilterFn,
+      settingCurrentModelLoading,
     };
   },
 });
